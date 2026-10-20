@@ -1,0 +1,76 @@
+name: Release
+
+# Publishing a GitHub release builds every binary and pushes the matching
+# version to npm. Both jobs are independent: a broken binary build does not
+# block the npm publish, and vice versa.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  binary:
+    name: binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: win32-x64 }
+          - { os: ubuntu-latest, target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: macos-15, target: darwin-arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Node SEA blobs are platform bound, so each target builds on its own OS.
+      - run: npm run build:sea
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mirrorhub-${{ matrix.target }}
+          path: build/mirrorhub-${{ matrix.target }}*
+          if-no-files-found: error
+      - uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          files: build/mirrorhub-${{ matrix.target }}*
+
+  npm:
+    name: npm (@mirrorhub/cli)
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - name: Check tag matches package.json
+        if: github.event_name == 'release'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+      - name: Publish
+        if: env.HAS_NPM_TOKEN == 'true'
+        run: npm publish --access public --provenance
+      - name: Missing NPM_TOKEN
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: echo "::warning::NPM_TOKEN secret is not set, skipping npm publish"

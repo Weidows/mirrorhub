@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,6 +45,14 @@ test("version -j prints a JSON envelope", async () => {
   assert.equal(body.ok, true);
   assert.equal(body.data.version, "0.1.0");
   assert.match(body.data.node, /^v\d+/);
+});
+
+test("package.json stays the single source of truth for the published version", async () => {
+  const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
+  assert.equal(pkg.name, "@mirrorhub/cli");
+  const run = await cli(["version", "-j"]);
+  assert.equal(run.code, 0);
+  assert.equal(envelope(run).data.version, pkg.version);
 });
 
 test("mirrors npm -j lists every built-in mirror with the official one first", async () => {

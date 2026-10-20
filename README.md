@@ -18,10 +18,10 @@
 
 ```bash
 # 全局安装（需要 Node.js >= 20.19）
-npm install -g mirrorhub
+npm install -g @mirrorhub/cli
 
 # 或者不安装，直接跑
-npx mirrorhub ls
+npx @mirrorhub/cli ls
 
 # 从源码
 git clone https://github.com/Weidows/mirrorhub.git
@@ -30,6 +30,18 @@ node dist/index.js ls
 ```
 
 安装后有两个等价的命令名：`mirrorhub` 和 `mh`。
+
+不想装 Node 也可以直接下载 [Releases](https://github.com/Weidows/mirrorhub/releases) 里的单文件可执行程序，
+解压即用、无运行时依赖：
+
+| 平台 | 文件 |
+| --- | --- |
+| Windows x64 | `mirrorhub-win32-x64.exe` |
+| Linux x64 / arm64 | `mirrorhub-linux-x64` / `mirrorhub-linux-arm64` |
+| macOS Intel / Apple Silicon | `mirrorhub-darwin-x64` / `mirrorhub-darwin-arm64` |
+
+这些文件用 Node SEA（Single Executable Application）打包，体积约 90 MB（内嵌 Node 运行时与界面资源），
+双击不带参数启动时会直接打开图形界面。
 
 ## 快速开始
 
@@ -133,9 +145,13 @@ $ mh use npm no-such-mirror -j
 ```bash
 npm install
 npm run build     # tsc -> dist/
-npm test          # 构建后跑 36 个测试（doc / adapters / service / CLI）
+npm test          # 构建后跑 37 个测试（doc / adapters / service / CLI）
 npm run dev -- ls # 用 Node 的类型擦除直接跑 src/index.ts
+npm run build:sea # 当前平台的单文件可执行程序 -> build/mirrorhub-<platform>-<arch>
 ```
+
+构建会先用 `scripts/gen-assets.mjs` 把 `assets/` 里的 html/css/js 生成为 `src/gui/assets.gen.ts`，
+这样 CLI、npm 包和单文件二进制都不依赖外部资源目录。
 
 目录：
 
@@ -148,10 +164,31 @@ src/
   app.ts            Service：CLI 与 GUI 共用的唯一入口
   userconfig.ts     自定义镜像持久化
   cli/              参数解析、帮助、表格输出、退出码
-  gui/server.ts     本地 HTTP 服务 + 静态资源
-assets/             GUI 的 html/css/js
+  gui/server.ts     本地 HTTP 服务（界面由 assets.gen.ts 内嵌）
+assets/             GUI 的 html/css/js 源文件
+scripts/           界面内嵌 + Node SEA 打包
 test/               node:test，跑构建后的 dist
 ```
+
+## 发布
+
+版本号写在 `package.json`（`src/version.ts` 与之一致，测试会校验）。发版流程：
+
+```bash
+npm version patch         # 或 minor / major，同时打 tag
+git push --follow-tags
+gh release create v0.1.1 --title v0.1.1 --notes "..."   # 发布 release 即触发工作流
+```
+
+`.github/workflows/release.yml` 在 release 发布后做两件事：
+
+1. 在五个原生 runner 上构建单文件二进制（Node SEA 的 V8 blob 与平台绑定，不能交叉编译），
+   作为 release 附件上传；
+2. 校验 tag 与 `package.json` 版本一致后执行 `npm publish --access public --provenance`。
+
+npm 发布需要在仓库 Secrets 里配置 `NPM_TOKEN`（npmjs.com → Access Tokens → Granular Access Token，
+勾选读写 `@mirrorhub` scope 与 `mirrorhub` 组织）；没有这个 secret 时工作流会跳过发布并给出警告。
+`ci.yml` 在 push / PR 时跑一遍 `npm test`。
 
 ## License
 

@@ -3,10 +3,10 @@ import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { AppError, type Service } from "../app.js";
 import type { Ctx } from "../manager/ctx.js";
+import { assets } from "./assets.gen.js";
 
 export interface GuiOptions {
   port?: number;
@@ -23,8 +23,6 @@ interface Instance {
   token: string;
   pid: number;
 }
-
-const assetsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
 
 const staticFiles: Record<string, { file: string; type: string }> = {
   "/": { file: "index.html", type: "text/html; charset=utf-8" },
@@ -185,13 +183,13 @@ async function serveStatic(path: string, res: ServerResponse): Promise<void> {
     send(res, 404, { ok: false, error: { code: "not_found", message: "页面不存在" } });
     return;
   }
-  try {
-    const body = await fs.readFile(join(assetsDir, entry.file));
-    res.writeHead(200, { "Content-Type": entry.type, "Cache-Control": "no-store" });
-    res.end(body);
-  } catch {
+  const body = assets[entry.file];
+  if (body === undefined) {
     send(res, 500, { ok: false, error: { code: "internal", message: `缺少界面资源 ${entry.file}` } });
+    return;
   }
+  res.writeHead(200, { "Content-Type": entry.type, "Cache-Control": "no-store" });
+  res.end(body);
 }
 
 function send(res: ServerResponse, status: number, payload: unknown): void {

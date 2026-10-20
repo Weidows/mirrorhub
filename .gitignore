@@ -1,5 +1,7 @@
 node_modules/
 dist/
+src/gui/assets.gen.ts
+build/
 *.log
 .tmp-*
 *.mirrorhub.tmp
