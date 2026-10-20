@@ -48,6 +48,21 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
+  // Double-clicking the single-file binary passes no arguments: go straight to
+  // the GUI. Flags alone (mirrorhub -h, mirrorhub -j) still print help.
+  if (!command && argv.length === 0) {
+    try {
+      const service = await Service.create({ ctx: newCtx() });
+      const { startGui } = await import("../gui/server.js");
+      const info = await startGui(service, { open: true });
+      console.log(`${cyan("MirrorHub")} ${info.url}`);
+      console.log(dim("命令行用法：mirrorhub help；关闭本窗口即退出"));
+      return 0;
+    } catch (err) {
+      return fail(err, false);
+    }
+  }
+
   if (!command || command === "help" || bool(flags, "help")) {
     const text = helpText(command === "help" ? rest[0] : command);
     if (json) console.log(JSON.stringify({ ok: true, data: { help: text } }, null, 2));

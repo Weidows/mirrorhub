@@ -40,8 +40,8 @@ node dist/index.js ls
 | Linux x64 / arm64 | `mirrorhub-linux-x64` / `mirrorhub-linux-arm64` |
 | macOS Intel / Apple Silicon | `mirrorhub-darwin-x64` / `mirrorhub-darwin-arm64` |
 
-这些文件用 Node SEA（Single Executable Application）打包，体积约 90 MB（内嵌 Node 运行时与界面资源），
-双击不带参数启动时会直接打开图形界面。
+这些文件用 Node SEA（Single Executable Application）打包，体积约 90 MB（内嵌 Node 运行时与界面资源）。
+双击（不带参数）会直接打开图形界面，关掉那个控制台窗口即退出；在终端里带参数运行就是普通 CLI。
 
 ## 快速开始
 
