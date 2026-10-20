@@ -246,16 +246,22 @@ async function testTools(toolIds, btn) {
   if (state.busy.has(key)) return;
   state.busy.add(key);
   const oldText = btn ? btn.textContent : "";
+  let tick = 0;
+  const timer = btn ? setInterval(() => { btn.textContent = "测速中" + ".".repeat((tick++ % 3) + 1); }, 300) : null;
   if (btn) { btn.disabled = true; btn.textContent = "测速中…"; }
   try {
     const data = await api("/api/test", { tools: toolIds, refresh: true });
     for (const r of data.results) state.latency[r.tool_id + "|" + r.mirror_id] = r;
     render();
-    const ok = data.results.filter((r) => r.ok).length;
-    toast("测速完成: " + ok + "/" + data.results.length + " 个镜像可用", ok ? "ok" : "err");
+    // Results are spread across every tool sharing a URL, so count unique URLs.
+    const ok = new Map();
+    for (const r of data.results) if (!ok.has(r.url)) ok.set(r.url, r.ok);
+    const good = [...ok.values()].filter(Boolean).length;
+    toast("测速完成: " + good + "/" + ok.size + " 个镜像可用", good ? "ok" : "err");
   } catch (err) {
     toast(String(err.message || err), "err");
   } finally {
+    if (timer) clearInterval(timer);
     state.busy.delete(key);
     if (btn) { btn.disabled = false; btn.textContent = oldText || "测速"; }
   }

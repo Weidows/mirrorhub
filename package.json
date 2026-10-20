@@ -1,6 +1,6 @@
 {
   "name": "@mirrorhub/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "包管理器镜像源切换器：一条命令看清 npm/pip/go/cargo 等 11 个工具当前用的源，测速、切换、还原，附带本地图形界面。",
   "keywords": [
     "mirror",
@@ -34,7 +34,7 @@
     "prebuild": "node scripts/gen-assets.mjs",
     "build": "tsc -p tsconfig.json",
     "build:sea": "npm run build && node scripts/build-sea.mjs",
-    "test": "npm run build && node --test test/doc.test.ts test/adapters.test.ts test/app.test.ts test/cli.test.ts",
+    "test": "npm run build && node --test test/doc.test.ts test/adapters.test.ts test/app.test.ts test/probe.test.ts test/cli.test.ts",
     "dev": "node --experimental-strip-types src/index.ts",
     "prepublishOnly": "npm run build"
   },

@@ -56,7 +56,8 @@ const details: Record<string, string> = {
   示例：mirrorhub mirrors npm`,
   test: `${bold("mirrorhub test")} [工具] [--refresh]
 
-  并发探测镜像，输出是否可用与首字节延迟。
+  3 路并发探测镜像，输出是否可用与首字节延迟；
+  相同的源测一次就同步到共用它的其它工具。
   不给工具名时测试全部工具；--refresh 忽略 5 分钟缓存。
   示例：mirrorhub test npm --refresh`,
   use: `${bold("mirrorhub use")} <工具> <镜像> [--dry-run]

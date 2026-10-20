@@ -42,8 +42,9 @@ test("version -j prints a JSON envelope", async () => {
   const run = await cli(["version", "-j"]);
   assert.equal(run.code, 0);
   const body = envelope(run);
+  const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
   assert.equal(body.ok, true);
-  assert.equal(body.data.version, "0.1.0");
+  assert.equal(body.data.version, pkg.version);
   assert.match(body.data.node, /^v\d+/);
 });
 

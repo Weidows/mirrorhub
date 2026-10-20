@@ -1,6 +1,6 @@
 import { AppError, type FastestResult, type Service } from "../app.js";
 import { normalizeUrl } from "../manager/ctx.js";
-import type { Change, ListData, Mirror, Status, ToolView } from "../model.js";
+import type { Change, ListData, Mirror, ProbeResult, Status, ToolView } from "../model.js";
 import { displayWidth, ms as fmtMs, pad, table } from "../render.js";
 import { bool, str, UsageError, type Parsed } from "./args.js";
 import { bold, cyan, dim, green, red, yellow } from "./term.js";
@@ -108,9 +108,31 @@ function mirrors(service: Service, args: string[]): CommandOutput {
   return { data: { mirrors: entries }, text: blocks.join("\n\n") };
 }
 
+/** Rough stderr progress bar; quiet for JSON output and non-TTY runs. */
+function progress(flags: Parsed["flags"]): { onProgress: (done: number, total: number) => void; clear: () => void } {
+  const enabled = !bool(flags, "json") && Boolean(process.stderr.isTTY);
+  const width = 20;
+  return {
+    onProgress(done, total) {
+      if (!enabled) return;
+      const filled = total === 0 ? width : Math.min(width, Math.round((done / total) * width));
+      process.stderr.write(`\r测速 [${"#".repeat(filled)}${"-".repeat(width - filled)}] ${done}/${total}`);
+    },
+    clear() {
+      if (enabled) process.stderr.write(`\r${" ".repeat(40)}\r`);
+    },
+  };
+}
+
 async function test(service: Service, args: string[], flags: Parsed["flags"]): Promise<CommandOutput> {
   const tool = args[0];
-  const results = await service.test(tool, { refresh: bool(flags, "refresh") });
+  const bar = progress(flags);
+  let results: ProbeResult[];
+  try {
+    results = await service.test(tool, { refresh: bool(flags, "refresh"), onProgress: bar.onProgress });
+  } finally {
+    bar.clear();
+  }
 
   const ordered = [...results].sort((a, b) => {
     if (a.tool_id !== b.tool_id) return a.tool_id.localeCompare(b.tool_id);
@@ -167,7 +189,17 @@ async function reset(service: Service, args: string[]): Promise<CommandOutput> {
 
 async function fastest(service: Service, args: string[], flags: Parsed["flags"]): Promise<CommandOutput> {
   if (args.length < 1) throw new UsageError("用法：mirrorhub fastest <工具> [--apply]");
-  const result: FastestResult = await service.fastest(args[0], { apply: bool(flags, "apply"), refresh: bool(flags, "refresh") });
+  const bar = progress(flags);
+  let result: FastestResult;
+  try {
+    result = await service.fastest(args[0], {
+      apply: bool(flags, "apply"),
+      refresh: bool(flags, "refresh"),
+      onProgress: bar.onProgress,
+    });
+  } finally {
+    bar.clear();
+  }
   const lines = [
     `${bold(result.tool)} 最快：${result.mirror.name} ${green(fmtMs(result.probe.ttfb_ms))} ${dim(`(${result.tested} 个可用)`)}`,
     dim(result.mirror.url),

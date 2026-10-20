@@ -9,7 +9,7 @@
 
 - **一眼看全**：检测 PATH 与配置文件，列出 11 个工具是否安装、版本、当前源来自文件还是环境变量。
 - **维护镜像列表**：内置 50 条国内常用源，支持添加自己的私有源（写在用户配置里，升级不丢）。
-- **一键测速**：并发探测，显示首字节延迟；测速遵循 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`。
+- **一键测速**：默认 3 路并发探测，CLI 带进度条；同一 URL 的结果会同步给共用该源的其它工具（npm / pnpm / yarn / bun 一次测完一起亮），遵循 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`。
 - **安全写入**：只改目标键、写前备份 `<配置文件>.mirrorhub.bak`、临时文件 + rename 原子替换、`--dry-run` 预览。
 - **CLI 与 GUI 同一个内核**，行为不会漂移；GUI 只监听 `127.0.0.1`，每次启动生成一次性 token。
 - **对 agent 友好**：`--json` 输出统一信封，稳定的错误码与退出码，无交互、无颜色也能跑。
@@ -73,7 +73,7 @@ uv      0.11.19    中科大     环境变量    https://mirrors.ustc.edu.cn/pyp
 | --- | --- |
 | `ls [--installed]` | 列出工具、版本、当前镜像与来源；`--installed` 只看已安装 |
 | `mirrors [工具]` | 列出内置与自定义镜像（含 id 与 URL） |
-| `test [工具] [--refresh]` | 并发测试可用性与延迟；结果缓存 5 分钟 |
+| `test [工具] [--refresh]` | 3 路并发测试可用性与延迟（CLI 显示进度条）；结果按 URL 缓存 5 分钟并同步给共用该源的其它工具 |
 | `use <工具> <镜像>` | 切换镜像，镜像可写 id、名称或完整 URL |
 | `reset <工具>` | 还原官方源，只删自己写的键 |
 | `fastest <工具> [--apply]` | 选延迟最低的可用镜像，`--apply` 直接切换 |
@@ -145,7 +145,7 @@ $ mh use npm no-such-mirror -j
 ```bash
 npm install
 npm run build     # tsc -> dist/
-npm test          # 构建后跑 37 个测试（doc / adapters / service / CLI）
+npm test          # 构建后跑 40 个测试（doc / adapters / service / probe / CLI）
 npm run dev -- ls # 用 Node 的类型擦除直接跑 src/index.ts
 npm run build:sea # 当前平台的单文件可执行程序 -> build/mirrorhub-<platform>-<arch>
 ```

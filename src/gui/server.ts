@@ -139,7 +139,9 @@ async function handlePost(
     }
     case "/api/test": {
       const ids = Array.isArray(body.tools) ? body.tools.filter((t): t is string => typeof t === "string") : [];
-      const results = await service.test(ids.length === 1 ? ids[0] : undefined, { refresh: body.refresh === true });
+      const results = service.spreadResults(
+        await service.test(ids.length === 1 ? ids[0] : undefined, { refresh: body.refresh === true }),
+      );
       send(res, 200, { ok: true, data: { results } });
       return;
     }

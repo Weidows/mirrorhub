@@ -44,6 +44,8 @@ export interface ListOptions {
 
 export interface TestOptions {
   refresh?: boolean;
+  /** Reports fresh probe progress; cached entries are not counted. */
+  onProgress?: (done: number, total: number) => void;
 }
 
 export interface FastestOptions extends TestOptions {
@@ -94,7 +96,7 @@ export class Service {
       opts.cache ?? new probe.Cache(),
       opts.probeTimeout ?? 8000,
       opts.cacheTtl ?? 5 * 60_000,
-      opts.workers ?? 16,
+      opts.workers ?? 3,
     );
   }
 
@@ -214,7 +216,11 @@ export class Service {
     });
 
     if (fresh.length > 0) {
-      const measured = await probe.run(fresh, this.workers, this.probeTimeout);
+      const measured = await probe.run(fresh, {
+        workers: this.workers,
+        timeoutMs: this.probeTimeout,
+        onProgress: opts.onProgress,
+      });
       measured.forEach((result, j) => {
         results[freshAt[j]] = result;
         this.cache.put(result.url, result);
@@ -223,9 +229,34 @@ export class Service {
     return results;
   }
 
+  /**
+   * spreadResults copies a measurement onto every tool that points at the same
+   * URL: npm, pnpm and yarn share registries, so testing one should light up
+   * the others in the GUI instead of leaving them blank.
+   */
+  spreadResults(results: ProbeResult[]): ProbeResult[] {
+    const seen = new Set(results.map((r) => `${r.tool_id}|${r.mirror_id}`));
+    const byUrl = new Map<string, ProbeResult>();
+    for (const result of results) byUrl.set(normalizeUrl(result.url), result);
+
+    const spread = [...results];
+    for (const id of registryIds()) {
+      if (!forTool(id)) continue;
+      for (const mirror of this.mirrorsFor(id)) {
+        const key = `${id}|${mirror.id}`;
+        const url = mirror.probe ?? mirror.url;
+        const hit = byUrl.get(normalizeUrl(url));
+        if (!hit || seen.has(key)) continue;
+        seen.add(key);
+        spread.push({ ...hit, tool_id: id, mirror_id: mirror.id, name: mirror.name, url });
+      }
+    }
+    return spread;
+  }
+
   async fastest(tool: string, opts: FastestOptions = {}): Promise<FastestResult> {
     this.requireTool(tool);
-    const results = await this.test(tool, { refresh: opts.refresh });
+    const results = await this.test(tool, { refresh: opts.refresh, onProgress: opts.onProgress });
     const usable = results.filter((r) => r.ok).sort((a, b) => a.ttfb_ms - b.ttfb_ms);
     if (usable.length === 0) {
       throw new AppError("no_usable_mirror", `${tool} 的所有镜像都探测失败`, "检查网络，或设置 HTTP_PROXY / HTTPS_PROXY 后再试");

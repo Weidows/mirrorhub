@@ -229,36 +229,60 @@ export async function measure(url: string, timeoutMs = 8000): Promise<Measuremen
   }
 }
 
-/** run probes every target, deduplicating identical probe URLs. */
-export async function run(targets: Target[], workers = 16, timeoutMs = 8000): Promise<ProbeResult[]> {
-  const byUrl = new Map<string, Promise<Measurement>>();
-  const pending: Promise<void>[] = [];
+export interface RunOptions {
+  /** Parallel probes; three keeps the measurement honest without hammering. */
+  workers?: number;
+  timeoutMs?: number;
+  /** Called after each distinct URL settles, for CLI progress output. */
+  onProgress?: (done: number, total: number) => void;
+}
 
-  for (let i = 0; i < targets.length; i++) {
-    const target = targets[i];
-    let measurement = byUrl.get(target.url);
-    if (!measurement) {
-      measurement = measure(target.url, timeoutMs);
-      byUrl.set(target.url, measurement);
-    }
-    pending.push(
-      measurement.then((r) => {
-        result[i] = {
+/**
+ * run probes every target with a small worker pool, deduplicating identical
+ * probe URLs. Results keep the input order, so callers can pair them back to
+ * the mirrors they asked about.
+ */
+export async function run(targets: Target[], options: RunOptions = {}): Promise<ProbeResult[]> {
+  const workers = Math.max(1, options.workers ?? 3);
+  const timeoutMs = options.timeoutMs ?? 8000;
+
+  const byUrl = new Map<string, number[]>();
+  targets.forEach((target, index) => {
+    const list = byUrl.get(target.url);
+    if (list) list.push(index);
+    else byUrl.set(target.url, [index]);
+  });
+
+  const urls = [...byUrl.keys()];
+  const results: ProbeResult[] = new Array(targets.length);
+  let cursor = 0;
+  let done = 0;
+
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor++;
+      if (index >= urls.length) return;
+      const url = urls[index];
+      const measurement = await measure(url, timeoutMs);
+      for (const targetIndex of byUrl.get(url) ?? []) {
+        const target = targets[targetIndex];
+        results[targetIndex] = {
           tool_id: target.tool_id,
           mirror_id: target.mirror_id,
           name: target.name,
-          url: target.url,
-          ok: r.ok,
-          status: r.status,
-          ttfb_ms: r.ttfb,
-          total_ms: r.total,
-          ...(r.error ? { error: r.error } : {}),
+          url,
+          ok: measurement.ok,
+          status: measurement.status,
+          ttfb_ms: measurement.ttfb,
+          total_ms: measurement.total,
+          ...(measurement.error ? { error: measurement.error } : {}),
         };
-      }),
-    );
-  }
+      }
+      done++;
+      options.onProgress?.(done, urls.length);
+    }
+  };
 
-  const result: ProbeResult[] = new Array(targets.length);
-  await Promise.all(pending);
-  return result;
+  await Promise.all(Array.from({ length: Math.min(workers, urls.length) }, () => worker()));
+  return results;
 }

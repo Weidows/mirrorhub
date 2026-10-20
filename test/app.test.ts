@@ -55,6 +55,33 @@ test("views summarises tools and can filter to installed ones", async () => {
   }
 });
 
+test("a measured source lights up every tool that shares it", async () => {
+  const fake = await fakeCtx();
+  try {
+    const service = await Service.create({ ctx: fake.ctx });
+    const measured = [
+      {
+        tool_id: "npm",
+        mirror_id: "npmmirror",
+        name: "npmmirror",
+        url: "https://registry.npmmirror.com/-/ping",
+        ok: true,
+        status: 200,
+        ttfb_ms: 12,
+        total_ms: 30,
+      },
+    ];
+    const spread = service.spreadResults(measured);
+    assert.deepEqual(
+      spread.map((r) => `${r.tool_id}/${r.mirror_id}`).sort(),
+      ["bun/npmmirror", "npm/npmmirror", "pnpm/npmmirror", "yarn/npmmirror"],
+    );
+    assert.equal(service.spreadResults(spread).length, spread.length, "spreading twice changes nothing");
+  } finally {
+    await fake.cleanup();
+  }
+});
+
 test("unknown tool and mirror names fail with stable error codes", async () => {
   const fake = await fakeCtx();
   try {
