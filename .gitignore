@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+.tmp-*
+*.mirrorhub.tmp
+.DS_Store
+Thumbs.db

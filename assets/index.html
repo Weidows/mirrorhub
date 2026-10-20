@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>MirrorHub</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">M</div>
+    <div class="title">
+      <h1>MirrorHub</h1>
+      <p>包管理器镜像源切换器</p>
+    </div>
+  </div>
+  <div class="meta">
+    <span id="version" class="chip"></span>
+    <span id="platform" class="chip"></span>
+  </div>
+  <div class="actions">
+    <button id="btn-refresh" class="btn" type="button">刷新</button>
+    <button id="btn-test-all" class="btn primary" type="button">全部测速</button>
+    <button id="btn-quit" class="btn ghost" type="button">退出</button>
+  </div>
+</header>
+
+<main>
+  <section id="stats" class="stats" aria-label="概览"></section>
+  <section id="tools" class="tools" aria-live="polite">
+    <div class="loading">正在检测本机工具…</div>
+  </section>
+  <footer class="foot">
+    <span>配置写入前自动备份为 <code>*.mirrorhub.bak</code></span>
+    <button id="cfg-path" class="link" type="button"></button>
+  </footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="dlg-custom" class="dialog">
+  <form id="form-custom" method="dialog">
+    <h2>添加自定义镜像</h2>
+    <label>工具
+      <select id="custom-tool" required></select>
+    </label>
+    <label>名称
+      <input id="custom-name" placeholder="例如 公司内网" required autocomplete="off">
+    </label>
+    <label>地址
+      <input id="custom-url" placeholder="https://registry.example.com" required autocomplete="off" spellcheck="false">
+    </label>
+    <p id="custom-error" class="form-error" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" id="custom-cancel">取消</button>
+      <button type="submit" class="btn primary" value="ok">添加</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "name": "mirrorhub",
+  "version": "0.1.0",
+  "description": "包管理器镜像源切换器：一条命令看清 npm/pip/go/cargo 等 11 个工具当前用的源，测速、切换、还原，附带本地图形界面。",
+  "keywords": [
+    "mirror",
+    "registry",
+    "npm",
+    "pip",
+    "goproxy",
+    "cargo",
+    "china",
+    "cli"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mirrorhub": "dist/index.js",
+    "mh": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/doc.test.ts test/adapters.test.ts test/app.test.ts test/cli.test.ts",
+    "dev": "node --experimental-strip-types src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Weidows/mirrorhub.git"
+  },
+  "homepage": "https://github.com/Weidows/mirrorhub",
+  "bugs": {
+    "url": "https://github.com/Weidows/mirrorhub/issues"
+  }
+}
