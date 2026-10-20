@@ -7,3 +7,4 @@ build/
 *.mirrorhub.tmp
 .DS_Store
 Thumbs.db
+*.tgz

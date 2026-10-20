@@ -4,6 +4,7 @@ import { allow, bool, parseArgs, str, UsageError, type Parsed } from "./args.js"
 import { runCommand } from "./commands.js";
 import { helpText, versionText } from "./help.js";
 import { cyan, dim, red, setColor, yellow } from "./term.js";
+import { version } from "../version.js";
 
 const globalFlags = ["json", "dry-run", "no-color", "verbose", "help", "version", "quiet"];
 
@@ -55,8 +56,10 @@ export async function main(argv: string[]): Promise<number> {
       const service = await Service.create({ ctx: newCtx() });
       const { startGui } = await import("../gui/server.js");
       const info = await startGui(service, { open: true });
-      console.log(`${cyan("MirrorHub")} ${info.url}`);
-      console.log(dim("命令行用法：mirrorhub help；关闭本窗口即退出"));
+      console.log(`${cyan("MirrorHub")} ${version}`);
+      console.log(`${dim("GUI ")} ${info.url}`);
+      console.log(`${dim("CLI ")} mh ls  |  mh test npm  |  mh use npm npmmirror  |  mh help`);
+      console.log(dim("关闭本窗口即退出"));
       return 0;
     } catch (err) {
       return fail(err, false);
@@ -91,7 +94,7 @@ export async function main(argv: string[]): Promise<number> {
       const info = await startGui(service, { port, open: !bool(flags, "no-open") });
       if (json) console.log(JSON.stringify({ ok: true, data: { url: info.url, pid: process.pid } }, null, 2));
       else {
-        console.log(`${cyan("MirrorHub")} ${info.url}`);
+        console.log(`${cyan("MirrorHub")} ${version}  ${dim(info.url)}`);
         console.log(dim("只监听本机 127.0.0.1；按 Ctrl+C 退出"));
       }
       return 0;

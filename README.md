@@ -29,7 +29,7 @@ cd mirrorhub && npm install && npm run build
 node dist/index.js ls
 ```
 
-安装后有两个等价的命令名：`mirrorhub` 和 `mh`。
+安装后有两个等价的命令名：`mirrorhub` 和 `mh`。不带参数运行 `mh` 会打开图形界面，同时在终端打印版本、界面地址和常用命令；只想看版本用 `mh version`。
 
 不想装 Node 也可以直接下载 [Releases](https://github.com/Weidows/mirrorhub/releases) 里的单文件可执行程序，
 解压即用、无运行时依赖：
