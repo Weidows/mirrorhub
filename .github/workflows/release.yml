@@ -45,13 +45,14 @@ jobs:
               x86_64) u=amd64 ;;
               aarch64|arm64) u=arm64 ;;
             esac
-            tag=$(curl -fsSL https://api.github.com/repos/upx/upx/releases/latest |
-              grep -m1 '"tag_name"' | cut -d'"' -f4)
+            # Pipe straight into grep -m1 and curl dies of SIGPIPE under pipefail.
+            curl -fsSL -o /tmp/upx.json https://api.github.com/repos/upx/upx/releases/latest
+            tag=$(grep -m1 '"tag_name"' /tmp/upx.json | cut -d'"' -f4)
             url="https://github.com/upx/upx/releases/download/${tag}/upx-${tag#v}-${u}_linux.tar.bz2"
             curl -fsSL -o /tmp/upx.tar.bz2 "$url" && tar -xjf /tmp/upx.tar.bz2 -C /tmp &&
               sudo install -m755 "/tmp/upx-${tag#v}-${u}_linux/upx" /usr/local/bin/upx || true
           fi
-          upx --version | head -1 || echo "upx unavailable, building uncompressed"
+          upx --version 2>/dev/null | sed -n 1p || echo "upx unavailable, building uncompressed"
       # Node SEA blobs are platform bound, so each target builds on its own OS.
       # UPX turns the ~90 MB node image into ~30 MB; see scripts/build-sea.mjs.
       - run: npm run build:sea
