@@ -45,9 +45,11 @@ jobs:
               x86_64) u=amd64 ;;
               aarch64|arm64) u=arm64 ;;
             esac
-            url="https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-${u}_linux.tar.bz2"
+            tag=$(curl -fsSL https://api.github.com/repos/upx/upx/releases/latest |
+              grep -m1 '"tag_name"' | cut -d'"' -f4)
+            url="https://github.com/upx/upx/releases/download/${tag}/upx-${tag#v}-${u}_linux.tar.bz2"
             curl -fsSL -o /tmp/upx.tar.bz2 "$url" && tar -xjf /tmp/upx.tar.bz2 -C /tmp &&
-              sudo install -m755 "/tmp/upx-5.0.2-${u}_linux/upx" /usr/local/bin/upx || true
+              sudo install -m755 "/tmp/upx-${tag#v}-${u}_linux/upx" /usr/local/bin/upx || true
           fi
           upx --version | head -1 || echo "upx unavailable, building uncompressed"
       # Node SEA blobs are platform bound, so each target builds on its own OS.
@@ -62,8 +64,10 @@ jobs:
           if [ "${{ runner.os }}" = "Windows" ]; then exe="$exe.exe"; fi
           "$exe" version
           mkdir -p out
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            # UPX cannot touch Mach-O, so macOS ships the raw binary in an archive.
+          size=$(stat -c%s "$exe" 2>/dev/null || stat -f%z "$exe")
+          if [ "$size" -gt 60000000 ]; then
+            # UPX cannot pack Mach-O, and may fail on a postject'd ELF: anything
+            # still ~100 MB ships as an archive instead of a bare download.
             tar -czf "out/mirrorhub-${{ matrix.target }}.tar.gz" -C build "$(basename "$exe")"
           else
             cp "$exe" out/

@@ -75,7 +75,10 @@ if (upx && process.platform !== "darwin") {
   const tmp = `${exe}.upx`;
   await copyFile(exe, tmp);
   try {
-    run(upx === "1" ? "upx" : upx, ["-9", "--quiet", tmp]);
+    const args = ["-9", "--quiet", tmp];
+    // ELF after postject injection trips UPX's e_phoff sanity check.
+    if (process.platform === "linux") args.splice(2, 0, "--force");
+    run(upx === "1" ? "upx" : upx, args);
     await rename(tmp, exe);
     const packed = (await stat(exe)).size;
     console.log(
