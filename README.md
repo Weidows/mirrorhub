@@ -40,8 +40,11 @@ node dist/index.js ls
 | Linux x64 / arm64 | `mirrorhub-linux-x64` / `mirrorhub-linux-arm64` |
 | macOS Intel / Apple Silicon | `mirrorhub-darwin-x64` / `mirrorhub-darwin-arm64` |
 
-这些文件用 Node SEA（Single Executable Application）打包，体积约 90 MB（内嵌 Node 运行时与界面资源）。
+这些文件用 Node SEA（Single Executable Application）打包，再经 UPX 压缩，体积约 27–35 MB；
+未压缩时约 90–125 MB（Node 运行时本身就有这么大）。代价是每次启动要先解压，比 npm 安装的版本慢约 0.3 秒。
+
 双击（不带参数）会直接打开图形界面，关掉那个控制台窗口即退出；在终端里带参数运行就是普通 CLI。
+高频调用（尤其是给 agent 用）还是建议 `npm i -g @mirrorhub/cli`，启动只要几十毫秒。
 
 ## 快速开始
 

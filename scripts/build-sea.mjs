@@ -3,6 +3,10 @@
 // so cross-compiling it is not supported by Node.
 //
 //   npm run build:sea  ->  build/mirrorhub-<platform>-<arch>[.exe]
+//
+// Node SEA embeds the whole node binary (~90 MB), so the default output is huge.
+// Set MIRRORHUB_UPX=1 (or MIRRORHUB_UPX=/path/to/upx) to compress it to ~30 MB.
+// Cost: every start unpacks the image, ~+300 ms on a warm Windows box.
 import { spawnSync } from "node:child_process";
 import { readFile, copyFile, mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -59,6 +63,16 @@ await inject(exe, "NODE_SEA_BLOB", await readFile(blob), {
   sentinelFuse: "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
   ...(process.platform === "darwin" ? { machoSegmentName: "NODE_SEA" } : {}),
 });
+// 4. Optional UPX compression. Signing must come last: UPX rewrites the image.
+const upx = process.env.MIRRORHUB_UPX;
+const rawSize = (await stat(exe)).size;
+if (upx) {
+  run(upx === "1" ? "upx" : upx, ["-9", "--quiet", exe]);
+  const packed = (await stat(exe)).size;
+  console.log(
+    `upx -> ${(rawSize / 1024 / 1024).toFixed(1)} MB => ${(packed / 1024 / 1024).toFixed(1)} MB`,
+  );
+}
 if (process.platform === "darwin") {
   run("codesign", ["--sign", "-", exe]);
 }

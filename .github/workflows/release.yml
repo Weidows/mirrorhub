@@ -32,8 +32,26 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Install UPX
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get update -qq && sudo apt-get install -y -qq upx-ucl ;;
+            macOS)   brew install upx ;;
+            Windows) choco install upx -y --no-progress ;;
+          esac
+          upx --version | head -1
       # Node SEA blobs are platform bound, so each target builds on its own OS.
+      # UPX turns the ~90 MB node image into ~30 MB; see scripts/build-sea.mjs.
       - run: npm run build:sea
+        env:
+          MIRRORHUB_UPX: "1"
+      - name: Smoke test
+        shell: bash
+        run: |
+          exe="build/mirrorhub-${{ matrix.target }}"
+          if [ "${{ runner.os }}" = "Windows" ]; then exe="$exe.exe"; fi
+          "$exe" version
       - uses: actions/upload-artifact@v5
         with:
           name: mirrorhub-${{ matrix.target }}
