@@ -32,35 +32,52 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # UPX 5.x specifically: the distro's 4.x cannot parse the ELF that postject
+      # rewrites. Not every arch ships a tarball, so a miss just means "no UPX".
       - name: Install UPX
+        if: runner.os != 'macOS'
         shell: bash
         run: |
-          case "${{ runner.os }}" in
-            Linux)   sudo apt-get update -qq && sudo apt-get install -y -qq upx-ucl ;;
-            macOS)   brew install upx ;;
-            Windows) choco install upx -y --no-progress ;;
-          esac
-          upx --version | head -1
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            choco install upx -y --no-progress || true
+          else
+            case "$(uname -m)" in
+              x86_64) u=amd64 ;;
+              aarch64|arm64) u=arm64 ;;
+            esac
+            url="https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-${u}_linux.tar.bz2"
+            curl -fsSL -o /tmp/upx.tar.bz2 "$url" && tar -xjf /tmp/upx.tar.bz2 -C /tmp &&
+              sudo install -m755 "/tmp/upx-5.0.2-${u}_linux/upx" /usr/local/bin/upx || true
+          fi
+          upx --version | head -1 || echo "upx unavailable, building uncompressed"
       # Node SEA blobs are platform bound, so each target builds on its own OS.
       # UPX turns the ~90 MB node image into ~30 MB; see scripts/build-sea.mjs.
       - run: npm run build:sea
         env:
           MIRRORHUB_UPX: "1"
-      - name: Smoke test
+      - name: Smoke test and package
         shell: bash
         run: |
           exe="build/mirrorhub-${{ matrix.target }}"
           if [ "${{ runner.os }}" = "Windows" ]; then exe="$exe.exe"; fi
           "$exe" version
+          mkdir -p out
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            # UPX cannot touch Mach-O, so macOS ships the raw binary in an archive.
+            tar -czf "out/mirrorhub-${{ matrix.target }}.tar.gz" -C build "$(basename "$exe")"
+          else
+            cp "$exe" out/
+          fi
+          ls -l out
       - uses: actions/upload-artifact@v5
         with:
           name: mirrorhub-${{ matrix.target }}
-          path: build/mirrorhub-${{ matrix.target }}*
+          path: out/*
           if-no-files-found: error
       - uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
-          files: build/mirrorhub-${{ matrix.target }}*
+          files: out/*
 
   npm:
     name: npm (@mirrorhub/cli)
@@ -87,7 +104,8 @@ jobs:
             exit 1
           fi
       - name: Publish
-        if: env.HAS_NPM_TOKEN == 'true'
+        # A manual dispatch must not burn a version; only releases publish.
+        if: github.event_name == 'release' && env.HAS_NPM_TOKEN == 'true'
         run: npm publish --access public --provenance
       - name: Missing NPM_TOKEN
         if: env.HAS_NPM_TOKEN != 'true'

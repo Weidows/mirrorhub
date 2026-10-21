@@ -8,7 +8,7 @@
 // Set MIRRORHUB_UPX=1 (or MIRRORHUB_UPX=/path/to/upx) to compress it to ~30 MB.
 // Cost: every start unpacks the image, ~+300 ms on a warm Windows box.
 import { spawnSync } from "node:child_process";
-import { readFile, copyFile, mkdir, stat, writeFile } from "node:fs/promises";
+import { readFile, copyFile, mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,14 +64,27 @@ await inject(exe, "NODE_SEA_BLOB", await readFile(blob), {
   ...(process.platform === "darwin" ? { machoSegmentName: "NODE_SEA" } : {}),
 });
 // 4. Optional UPX compression. Signing must come last: UPX rewrites the image.
+//    UPX refuses Mach-O ("macOS is currently not supported"), so darwin keeps the
+//    raw binary and the release workflow ships it as .tar.gz instead.
 const upx = process.env.MIRRORHUB_UPX;
-const rawSize = (await stat(exe)).size;
-if (upx) {
-  run(upx === "1" ? "upx" : upx, ["-9", "--quiet", exe]);
-  const packed = (await stat(exe)).size;
-  console.log(
-    `upx -> ${(rawSize / 1024 / 1024).toFixed(1)} MB => ${(packed / 1024 / 1024).toFixed(1)} MB`,
-  );
+if (upx && process.platform === "darwin") {
+  console.log("upx skipped: UPX does not support Mach-O binaries");
+}
+if (upx && process.platform !== "darwin") {
+  const rawSize = (await stat(exe)).size;
+  const tmp = `${exe}.upx`;
+  await copyFile(exe, tmp);
+  try {
+    run(upx === "1" ? "upx" : upx, ["-9", "--quiet", tmp]);
+    await rename(tmp, exe);
+    const packed = (await stat(exe)).size;
+    console.log(
+      `upx -> ${(rawSize / 1024 / 1024).toFixed(1)} MB => ${(packed / 1024 / 1024).toFixed(1)} MB`,
+    );
+  } catch (err) {
+    await rm(tmp, { force: true });
+    console.warn(`upx failed, keeping the uncompressed binary: ${err.message}`);
+  }
 }
 if (process.platform === "darwin") {
   run("codesign", ["--sign", "-", exe]);
