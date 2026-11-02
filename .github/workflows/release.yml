@@ -87,9 +87,6 @@ jobs:
   npm:
     name: npm (@mirrorhub/cli)
     runs-on: ubuntu-latest
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -99,6 +96,8 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm test
+      # trusted publishing 要 npm >= 11.5.1；显式钉住，别依赖镜像自带的版本
+      - run: npm install -g npm@^11.15.0 && npm --version
       - name: Check tag matches package.json
         if: github.event_name == 'release'
         run: |
@@ -108,10 +107,9 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
+      # npm Trusted Publishing（OIDC），绑的是 github · Weidows/mirrorhub · release.yml。
+      # 没有 NPM_TOKEN；`id-token: write` 在 workflow 顶层，provenance 自动生成。
+      # 手动 dispatch 不烧版本号 —— 只有真实 release 才发。
       - name: Publish
-        # A manual dispatch must not burn a version; only releases publish.
-        if: github.event_name == 'release' && env.HAS_NPM_TOKEN == 'true'
-        run: npm publish --access public --provenance
-      - name: Missing NPM_TOKEN
-        if: env.HAS_NPM_TOKEN != 'true'
-        run: echo "::warning::NPM_TOKEN secret is not set, skipping npm publish"
+        if: github.event_name == 'release'
+        run: npm publish

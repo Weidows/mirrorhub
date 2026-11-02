@@ -187,10 +187,11 @@ gh release create v0.1.1 --title v0.1.1 --notes "..."   # 发布 release 即触�
 
 1. 在五个原生 runner 上构建单文件二进制（Node SEA 的 V8 blob 与平台绑定，不能交叉编译），
    作为 release 附件上传；
-2. 校验 tag 与 `package.json` 版本一致后执行 `npm publish --access public --provenance`。
+2. 校验 tag 与 `package.json` 版本一致后执行 `npm publish`。
 
-npm 发布需要在仓库 Secrets 里配置 `NPM_TOKEN`（npmjs.com → Access Tokens → Granular Access Token，
-勾选读写 `@mirrorhub` scope 与 `mirrorhub` 组织）；没有这个 secret 时工作流会跳过发布并给出警告。
+npm 发布走 **Trusted Publishing（OIDC），不需要任何 secret**。绑定在 npm 包设置里，字段必须严格一致：
+仓库 `Weidows/mirrorhub`、workflow `release.yml`、Environment 留空、允许 `npm publish`。
+文件名就是信任契约 —— 改名会让发布立刻 `ENEEDAUTH`。
 `ci.yml` 在 push / PR 时跑一遍 `npm test`。
 
 ## License
